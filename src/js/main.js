@@ -286,6 +286,10 @@
       watchInView();
       armReveals();
       armFire();
+      var stick = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--stick")) || 0;
+      window.scrollTo(0, 0);
+      var naturalTop = box.getBoundingClientRect().top;
+      window.scrollTo({ top: Math.max(0, naturalTop - stick), behavior: "auto" });
     });
   }
 
