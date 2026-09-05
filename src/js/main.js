@@ -269,6 +269,22 @@
     var list = (cat === "All") ? MENU : MENU.filter(function(g){ return g.cat === cat; });
     document.getElementById("groups").innerHTML = list.map(groupHTML).join("");
   }
+  /* put the tab bar — and so the top of the chosen section — just under the
+     sticky header. Measured with the bar briefly un-stuck: a stuck element
+     reports its pinned position, not where it actually sits in the page. */
+  function scrollTabsIntoView(){
+    var box = document.getElementById("tabs");
+    var stick = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--stick")) || 0;
+    var prev = box.style.position;
+    box.style.position = "static";
+    var top = box.getBoundingClientRect().top + window.pageYOffset;
+    box.style.position = prev;
+    /* "instant", not "auto" — auto defers to html{scroll-behavior:smooth},
+       and an animated scroll fights the content swap that just changed the
+       page height underneath it */
+    window.scrollTo({ top: Math.max(0, top - stick), behavior: "instant" });
+  }
+
   function renderTabs(){
     var box = document.getElementById("tabs");
     box.innerHTML = CATS.map(function(c,i){
@@ -286,10 +302,7 @@
       watchInView();
       armReveals();
       armFire();
-      var stick = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--stick")) || 0;
-      window.scrollTo(0, 0);
-      var naturalTop = box.getBoundingClientRect().top;
-      window.scrollTo({ top: Math.max(0, naturalTop - stick), behavior: "auto" });
+      scrollTabsIntoView();
     });
   }
 

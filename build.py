@@ -60,10 +60,25 @@ def assemble_html():
     return html
 
 
+def empty(directory):
+    """Delete everything inside a directory, but not the directory itself.
+
+    On Windows a running dev server (or an open Explorer window) holds a
+    handle on the folder, so removing public/ outright fails with
+    PermissionError. Emptying it in place works regardless.
+    """
+    for child in directory.iterdir():
+        if child.is_dir():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+
+
 def main():
     if PUBLIC.exists():
-        shutil.rmtree(PUBLIC)
-    PUBLIC.mkdir(parents=True)
+        empty(PUBLIC)
+    else:
+        PUBLIC.mkdir(parents=True)
 
     (PUBLIC / "index.html").write_text(assemble_html(), encoding="utf-8")
 
