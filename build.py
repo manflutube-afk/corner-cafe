@@ -183,7 +183,6 @@ def main():
     shutil.copyfile(SRC / "js" / "main.js", PUBLIC / "js" / "main.js")
 
     shutil.copytree(IMAGES, PUBLIC / "images")
-    shutil.copyfile(SRC / "sitemap.xml", PUBLIC / "sitemap.xml")
 
     print("built %d pages + sitemap.xml into public/" % len(PAGES))
 
