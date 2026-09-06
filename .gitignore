@@ -3,3 +3,7 @@ node_modules/
 public/
 
 __pycache__/
+
+# Raw photo drops waiting to be processed into properly named, resized files.
+# They stay on disk in images/ but are neither committed nor deployed.
+images/IMG_*

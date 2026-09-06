@@ -151,16 +151,18 @@ NOT_FOUND = {
 }
 
 
+def image_refs(html):
+    """Every /images/... filename a page actually asks for."""
+    return set(re.findall(r"/images/([A-Za-z0-9._-]+)", html))
+
+
 def check_images(html, where):
     """Fail the build if a page references an image that isn't in images/.
 
     A missing image is invisible in the build output and only shows up as a
     broken picture on the live site, so it's worth catching here.
     """
-    missing = sorted({
-        ref for ref in re.findall(r'/images/([A-Za-z0-9._-]+)', html)
-        if not (IMAGES / ref).exists()
-    })
+    missing = sorted(ref for ref in image_refs(html) if not (IMAGES / ref).exists())
     if missing:
         sys.exit("%s references images that are not in images/: %s"
                  % (where, ", ".join(missing)))
@@ -206,15 +208,21 @@ def main():
     else:
         PUBLIC.mkdir(parents=True)
 
+    used = set()
+
     for page in PAGES:
         target = PUBLIC / "index.html" if not page["slug"] \
             else PUBLIC / page["slug"] / "index.html"
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(build_page(page), encoding="utf-8")
+        html = build_page(page)
+        used.update(image_refs(html))
+        target.write_text(html, encoding="utf-8")
         print("  %-12s -> %s" % (path_for(page["slug"]),
                                  target.relative_to(ROOT).as_posix()))
 
-    (PUBLIC / "404.html").write_text(build_page(NOT_FOUND), encoding="utf-8")
+    html = build_page(NOT_FOUND)
+    used.update(image_refs(html))
+    (PUBLIC / "404.html").write_text(html, encoding="utf-8")
     print("  %-12s -> %s" % ("(404)", "public/404.html"))
 
     (PUBLIC / "sitemap.xml").write_text(build_sitemap(), encoding="utf-8")
@@ -229,9 +237,15 @@ def main():
     # hashed names can never go stale, so let them be cached hard
     (PUBLIC / "_headers").write_text(HEADERS, encoding="utf-8")
 
-    shutil.copytree(IMAGES, PUBLIC / "images")
+    # Only the images the pages actually ask for. Raw camera drops waiting to
+    # be processed sit in images/ too, and deploying megabytes of them would be
+    # pure waste. plan.svg is inlined into the page, so it isn't needed here.
+    (PUBLIC / "images").mkdir()
+    for name in sorted(used):
+        shutil.copyfile(IMAGES / name, PUBLIC / "images" / name)
 
-    print("built %d pages + sitemap.xml into public/" % len(PAGES))
+    print("built %d pages + sitemap.xml, %d images into public/"
+          % (len(PAGES), len(used)))
 
 
 if __name__ == "__main__":
