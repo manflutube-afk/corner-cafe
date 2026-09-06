@@ -156,5 +156,11 @@ servers are Linux) with output directory `public`.
   elements, which only works for inline `<svg>`, not `<img src="...">`.
   If the market layout changes, edit `make_map.py` and re-run it, then
   re-run `build.py`.
+- **Cache busting**: `build.py` writes `style.<hash>.css` / `main.<hash>.js`
+  and points the pages at those. Cloudflare serves the HTML with
+  `max-age=0` but assets for hours, so without this a fresh page can be
+  styled by a stale stylesheet — which shipped a badge stretched to triple
+  height before this was added. Don't go back to fixed asset filenames; the
+  `_headers` file caches the hashed ones for a year on the strength of it.
 - **Reduced motion**: everything animated checks
   `prefers-reduced-motion`. Keep that check on any new animation.

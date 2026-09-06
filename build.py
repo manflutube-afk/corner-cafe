@@ -26,6 +26,7 @@ Run after any edit under src/ or images/:
 """
 
 import datetime
+import hashlib
 import re
 import shutil
 import sys
@@ -41,6 +42,30 @@ sys.path.insert(0, str(SRC))
 from pages import PAGES, SITE_URL  # noqa: E402
 
 TOKEN_RE = re.compile(r"__[A-Z0-9_:]+__")
+
+
+def hashed_name(path):
+    """style.css -> style.<content hash>.css
+
+    The HTML is served with max-age=0 but CSS and JS are cached for hours, so
+    a fresh page could otherwise be styled by a stale stylesheet — which is not
+    theoretical: it shipped a badge stretched to triple height. Changing the
+    filename whenever the contents change makes that impossible, and lets the
+    assets be cached hard (see the _headers file).
+    """
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()[:8]
+    return "%s.%s%s" % (path.stem, digest, path.suffix)
+
+
+CSS_NAME = hashed_name(SRC / "css" / "style.css")
+JS_NAME = hashed_name(SRC / "js" / "main.js")
+
+HEADERS = """\
+/css/*
+  Cache-Control: public, max-age=31536000, immutable
+/js/*
+  Cache-Control: public, max-age=31536000, immutable
+"""
 
 
 def read(path):
@@ -91,6 +116,8 @@ def build_page(page):
         html = html.replace('<link rel="canonical" href="%s">' % canonical,
                             '<meta name="robots" content="noindex">')
     html = html.replace("__SITE_URL__", SITE_URL)
+    html = html.replace("__CSS__", "/css/" + CSS_NAME)
+    html = html.replace("__JS__", "/js/" + JS_NAME)
 
     for name in re.findall(r"__PARTIAL:([a-z]+)__", html):
         html = html.replace("__PARTIAL:%s__" % name,
@@ -194,10 +221,13 @@ def main():
     (PUBLIC / "robots.txt").write_text(build_robots(), encoding="utf-8")
 
     (PUBLIC / "css").mkdir()
-    shutil.copyfile(SRC / "css" / "style.css", PUBLIC / "css" / "style.css")
+    shutil.copyfile(SRC / "css" / "style.css", PUBLIC / "css" / CSS_NAME)
 
     (PUBLIC / "js").mkdir()
-    shutil.copyfile(SRC / "js" / "main.js", PUBLIC / "js" / "main.js")
+    shutil.copyfile(SRC / "js" / "main.js", PUBLIC / "js" / JS_NAME)
+
+    # hashed names can never go stale, so let them be cached hard
+    (PUBLIC / "_headers").write_text(HEADERS, encoding="utf-8")
 
     shutil.copytree(IMAGES, PUBLIC / "images")
 
