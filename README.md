@@ -8,36 +8,71 @@ split into separate files under `src/` so it's easy to work on in an editor.
 
 ```
 src/
-  index.template.html   page shell — head, header, nav, main, footer, script tag
-  head-meta.html         <head> meta tags: title, description, favicons, og/twitter
+  pages.py               THE page list — slugs, titles, descriptions.
+                         Edit this to change a page title or add a page.
+  page.template.html     the shell every page is poured into
   partials/
-    header.html          top bar
-    nav.html              main nav + mobile drawer
-    home.html             HOME section
-    visit.html            WHY VISIT section
-    menu.html              MENU section
-    roasts.html           ROASTS section
-    about.html             WHO WE ARE section
-    find.html               FIND US section
-    footer.html            bottom ticker + footer
-  css/style.css           all styles
-  js/main.js              all behaviour (routing, reveals, ticker, countdown, etc.)
-images/                  every source image, the floor-plan SVG, and favicons —
-                         the master copies; referenced by real relative paths
-                         (e.g. `images/hero.jpg`), not embedded as data URIs
+    header.html          top bar          (shared by every page)
+    nav.html             nav shell        (links generated from pages.py)
+    footer.html          ticker + footer  (shared by every page)
+    home.html  visit.html  menu.html
+    roasts.html  about.html  find.html    one file per page
+    404.html             the not-found page
+  css/style.css          all styles
+  js/main.js             all behaviour (menu tabs, reveals, ticker, countdown)
+images/                  every source image, the floor plan and favicons,
+                         referenced as real paths (/images/hero.jpg)
 build.py                 assembles src/ + images/ into public/
 public/                  generated deploy root (gitignored — see below)
-make_map.py              regenerates images/plan.svg, the floor plan of Par
-                         Market with stall 6 highlighted
+make_map.py              regenerates images/plan.svg, the Par Market floor plan
 ```
 
-`public/` is a **build artifact**, not source — it's regenerated from
-`src/` and `images/` every time you build, and it's gitignored. Don't
-hand-edit anything under `public/`; edit the files under `src/` instead.
+`public/` is a **build artifact**, not source — regenerated on every build and
+gitignored. Never hand-edit anything in it; edit `src/` instead.
+
+## Pages and SEO
+
+Every entry in `src/pages.py` is built as its own real URL:
+
+| URL | partial |
+| --- | --- |
+| `/` | `home.html` |
+| `/why-visit/` | `visit.html` |
+| `/menu/` | `menu.html` |
+| `/roasts/` | `roasts.html` |
+| `/who-we-are/` | `about.html` |
+| `/find-us/` | `find.html` |
+
+Each is a standalone HTML file with its own `<title>`, meta description,
+canonical URL and og/twitter tags, so search engines index them separately.
+The build also writes `sitemap.xml` (all six URLs), `robots.txt` pointing at
+it, and a `404.html` marked `noindex`.
+
+This replaced an earlier version where all six sections lived at one URL and
+were switched with `#hash` links. Search engines ignore everything after a
+`#`, so only the homepage could ever be indexed and a sitemap was impossible.
+`main.js` still redirects the old `#menu`-style links to the real pages, so
+anything shared before the change keeps working — don't remove that.
+
+**Trailing slashes matter.** Cloudflare Pages serves `/menu/` and
+308-redirects `/menu` to it. Nav links, canonical tags and the sitemap all use
+the trailing-slash form so they match what actually answers 200 — `path_for()`
+in `build.py` is the single place that decides this.
+
+### Adding a page
+
+1. Write `src/partials/<name>.html` — just the
+   `<section class="page is-active" id="page-<name>">` markup.
+2. Add an entry to `PAGES` in `src/pages.py` with its slug, nav label, title
+   and description.
+3. Run `python build.py`.
+
+The nav, the sitemap and the page itself all come from that one entry, so
+there is nothing else to keep in sync.
 
 ## Working on this in VS Code
 
-Open this folder in VS Code. Edit whichever partial you're touching — e.g.
+Open this folder in VS Code. Edit whichever partial you're touching —
 `src/partials/menu.html` for the menu, `src/css/style.css` for styling,
 `src/js/main.js` for behaviour — then rebuild:
 
@@ -45,34 +80,25 @@ Open this folder in VS Code. Edit whichever partial you're touching — e.g.
 python build.py
 ```
 
-`npm run dev` and `npm run deploy` rebuild automatically before running, so
-in normal use you don't need to run `build.py` by hand — just run one of
-those.
+`npm run dev` and `npm run deploy` rebuild automatically first, so day to day
+you just run one of those.
 
-### Adding a page section
+### Adding or replacing an image
 
-1. Add `src/partials/<name>.html` (just the `<section class="page" id="page-<name>" ...>` markup).
-2. Reference it from `src/index.template.html` with `__PARTIAL:<name>__`.
-3. Add a nav link in `src/partials/nav.html` (both the desktop nav and the
-   mobile drawer list the same links).
-4. Add `<name>` to the `PAGES`/`TITLES` lists in `src/js/main.js` so the
-   hash router (`#<name>`) picks it up.
-
-### Adding/replacing an image
-
-Drop the file in `images/`, reference it from the relevant partial as
-`images/<filename>`, and rebuild. No base64, no token — it's a normal
-static asset served straight from Cloudflare Pages.
+Drop the file in `images/`, reference it from the partial as
+`/images/<filename>` (leading slash — pages live at `/menu/index.html`, so a
+relative path would resolve wrongly), and rebuild.
 
 ## Local development
 
 ```bash
-npm install
 npm run dev
 ```
 
-This rebuilds `public/` then runs `wrangler pages dev public`, a local
-Cloudflare Pages emulator.
+Rebuilds `public/`, then runs `wrangler pages dev public` — the local
+Cloudflare Pages emulator. Prefer it over a plain static server: it reproduces
+Cloudflare's real trailing-slash redirects and 404 handling, which a generic
+server does not.
 
 ## Deploy
 
@@ -80,10 +106,10 @@ Cloudflare Pages emulator.
 npm run deploy
 ```
 
-Rebuilds `public/` then runs `wrangler pages deploy public`. First deploy
-will prompt you to log in to Cloudflare and will create the `corner-cafe`
-Pages project. Point your custom domain at it from the Cloudflare dashboard
-afterwards.
+Rebuilds and runs `wrangler pages deploy public`. The site is also connected
+to GitHub, so pushing to `main` triggers a Cloudflare build automatically —
+its build command is `python3 build.py` (note `python3`; Cloudflare's build
+servers are Linux) with output directory `public`.
 
 ## Design system
 
@@ -102,10 +128,10 @@ afterwards.
   the screen, since touch devices have no `:hover`.
 - The reviews carousel on mobile (`#reviewsTrack` / `#reviewsDots`) uses
   native CSS scroll-snap plus a small JS layer just to sync the dots.
-- Pages are switched client-side via `#hash` routing (see the
-  `PAGES`/`TITLES`/`show()` logic in `src/js/main.js`). Each has its own
-  title and updates the URL hash, so links like `#menu` jump straight to
-  that section.
+- Each page is a real document at its own URL — there is no client-side
+  router. The nav is plain links, and the current page is marked with
+  `aria-current="page"` at build time, which is what both the highlight and
+  the sliding nav indicator key off.
 
 ## Known gotchas (don't reintroduce these)
 
@@ -115,10 +141,15 @@ afterwards.
   a `.hero p` or `.hero .btn` rule will leak onto *every* paragraph or
   button anywhere else on the home page and silently override its
   colour. This has bitten this project twice already.
-- **Social image**: `og:image`/`twitter:image` point at the relative
-  path `images/social-share.jpg`. Social platforms fetch that over
-  HTTP — no preview will render until the site is actually live at a
-  public URL with that file reachable next to the HTML.
+- **Social image**: `og:image`/`twitter:image` are built as absolute URLs
+  (`https://cornercafeparmarket.uk/images/social-share.jpg`) from `SITE_URL`
+  in `src/pages.py`. They have to be absolute — social platforms fetch them
+  over HTTP and can't resolve a relative path. If the domain ever changes,
+  change `SITE_URL` and everything else follows.
+- **Page-specific elements**: `main.js` runs on every page, but the menu
+  tabs, roast countdown, hours table and review carousel each exist on only
+  one of them. Every lookup for those is null-guarded — keep it that way when
+  adding anything new, or one missing element breaks the script site-wide.
 - **Floor plan stays inline**: `__MAP_SVG__` in `src/partials/find.html`
   is replaced with the raw contents of `images/plan.svg`, not a file
   reference — the page's CSS animates the plan's `.ping` and `.callout`

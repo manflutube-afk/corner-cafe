@@ -1,6 +1,13 @@
 (function(){
   "use strict";
 
+  /* Each page is now its own URL. Links shared before that change point at
+     #hash sections on the homepage, so send those on to the real page. */
+  var LEGACY = { home:"/", visit:"/why-visit/", menu:"/menu/",
+                 roasts:"/roasts/", about:"/who-we-are/", find:"/find-us/" };
+  var landing = LEGACY[(location.hash || "").slice(1)];
+  if (landing && landing !== location.pathname) { location.replace(landing); return; }
+
 
   /* ---------- hamburger drawer ---------- */
   var toggle = document.getElementById("navToggle");
@@ -43,40 +50,6 @@
   }
   window.addEventListener("resize", moveIndicator);
 
-  /* ---------------- router ---------------- */
-  var PAGES = ["home","visit","menu","roasts","about","find"];
-  var TITLES = {
-    home:"Corner Café — Par Market, Cornwall",
-    visit:"Why visit — Corner Café, Par Market",
-    menu:"Menu — Corner Café, Par Market",
-    roasts:"Roast days — Corner Café, Par Market",
-    about:"Who we are — Corner Café, Par Market",
-    find:"Find us — Corner Café, stall 6, Par Market"
-  };
-
-  function show(id){
-    if (PAGES.indexOf(id) === -1) id = "home";
-    PAGES.forEach(function(p){
-      document.getElementById("page-"+p).classList.toggle("is-active", p === id);
-    });
-    document.querySelectorAll(".navbtn").forEach(function(a){
-      if (a.getAttribute("href") === "#"+id) a.setAttribute("aria-current","page");
-      else a.removeAttribute("aria-current");
-    });
-    closeDrawer();
-    moveIndicator();
-    document.title = TITLES[id];
-    window.scrollTo({ top:0, behavior:"auto" });
-    watchInView();
-    armReveals();
-    armFire();
-    var h = document.querySelector("#page-"+id+" h1, #page-"+id+" h2");
-    if (h) { h.setAttribute("tabindex","-1"); h.focus({preventScroll:true}); }
-  }
-
-  function fromHash(){ show((location.hash || "#home").slice(1)); }
-  window.addEventListener("hashchange", fromHash);
-
   /* sticky offset for the menu tabs = header + nav */
   function setStick(){
     var h = document.querySelector(".topbar").offsetHeight + document.querySelector(".mainnav").offsetHeight;
@@ -88,10 +61,12 @@
   /* ---------------- ticker ---------------- */
   var phrases = ["Roasts Wednesday &amp; Sunday","Cup of tea <b>£1.50</b>","Scone, jam &amp; clotted cream <b>£3.50</b>","The Belly Buster <b>£13.80</b>","Open Wed, Sat &amp; Sun 9–5","Homemade cottage pie","Stall 6 — past the stalls, far corner"];
   var half = phrases.map(function(p){ return "<span>"+p+"</span><span>✦</span>"; }).join("");
-  document.getElementById("tick").innerHTML = half + half;
+  var tick = document.getElementById("tick");
+  if (tick) tick.innerHTML = half + half;
   var phrases2 = ["Stall 6, Par Market","Open <b>Wed · Sat · Sun</b>","9am – 5pm","Order at the counter with your table number","Roast dinners <b>from £8.00</b>","Jacket, salad &amp; coleslaw <b>£4.80</b>"];
   var half2 = phrases2.map(function(p){ return "<span>"+p+"</span><span>✦</span>"; }).join("");
-  document.getElementById("tick2").innerHTML = half2 + half2;
+  var tick2 = document.getElementById("tick2");
+  if (tick2) tick2.innerHTML = half2 + half2;
 
   /* ---------------- hours / status ---------------- */
   var OPEN = {0:[9,17], 3:[9,17], 6:[9,17]};
@@ -99,8 +74,10 @@
   function fmtHour(h){ return h === 12 ? "12pm" : (h > 12 ? (h-12)+"pm" : h+"am"); }
 
   function renderHours(){
+    var box = document.getElementById("hours");
+    if (!box) return;
     var today = new Date().getDay();
-    document.getElementById("hours").innerHTML = [1,2,3,4,5,6,0].map(function(d){
+    box.innerHTML = [1,2,3,4,5,6,0].map(function(d){
       var o = OPEN[d];
       var cls = (d === today ? "today " : "") + (o ? "" : "shut");
       return '<li class="'+cls.trim()+'"><span class="day">'+DAYS[d]+'</span><span>'+
@@ -137,6 +114,7 @@
 
   function renderCountdown(){
     var el = document.getElementById("countdown");
+    if (!el) return;
     var now = new Date(), d = now.getDay(), h = now.getHours();
     if ((d === 0 || d === 3) && h >= 9 && h < 17) {
       el.innerHTML = '<div class="cd-cell" style="min-width:auto;padding:14px 24px"><b>Today</b><small>gravy is on</small></div>';
@@ -266,14 +244,17 @@
            (g.note ? '<p class="note">'+g.note+'</p>' : '')+'<ul>'+items+'</ul></article>';
   }
   function renderMenu(cat){
+    var box = document.getElementById("groups");
+    if (!box) return;
     var list = (cat === "All") ? MENU : MENU.filter(function(g){ return g.cat === cat; });
-    document.getElementById("groups").innerHTML = list.map(groupHTML).join("");
+    box.innerHTML = list.map(groupHTML).join("");
   }
   /* put the tab bar — and so the top of the chosen section — just under the
      sticky header. Measured with the bar briefly un-stuck: a stuck element
      reports its pinned position, not where it actually sits in the page. */
   function scrollTabsIntoView(){
     var box = document.getElementById("tabs");
+    if (!box) return;
     var stick = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--stick")) || 0;
     var prev = box.style.position;
     box.style.position = "static";
@@ -287,6 +268,7 @@
 
   function renderTabs(){
     var box = document.getElementById("tabs");
+    if (!box) return;
     box.innerHTML = CATS.map(function(c,i){
       return '<button class="tab'+(i===0?' is-on':'')+'" data-cat="'+c+'" role="tab" aria-selected="'+(i===0)+'">'+
              (CAT_LABELS[c]||c)+'</button>';
@@ -424,7 +406,7 @@
       prog.style.width = (max > 0 ? (window.scrollY / max) * 100 : 0) + "%";
       if (!reduce) {
         var bg = document.querySelector(".hero-bg");
-        if (bg && document.getElementById("page-home").classList.contains("is-active")) {
+        if (bg) {
           var y = Math.min(window.scrollY, 700);
           bg.style.transform = "translate3d(0," + (y * 0.22) + "px,0) scale(" + (1 + y * 0.00018) + ")";
         }
@@ -457,7 +439,6 @@
   renderHours();
   updateStatus();
   renderCountdown();
-  fromHash();
   watchInView();
   armReveals();
   armFire();
