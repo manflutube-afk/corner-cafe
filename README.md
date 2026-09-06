@@ -19,6 +19,7 @@ src/
     roasts.html  about.html  find.html    one file per page
     404.html             the not-found page
   css/style.css          all styles
+  fonts/                 self-hosted woff2 files + generated fonts.css
   js/main.js             all behaviour (menu tabs, reveals, ticker, countdown)
 images/                  every source image, the floor plan and favicons,
                          referenced as real paths (/images/hero.jpg)
@@ -116,8 +117,8 @@ servers are Linux) with output directory `public`.
 - Colours, fonts, and spacing are all CSS custom properties at the top
   of `src/css/style.css` (`--ink`, `--baby`, `--blue`, etc.) — change
   the palette from one place.
-- `Anton` (headings), `Barlow` (body), `Caveat` (handwritten accents)
-  loaded from Google Fonts.
+- `Anton` (headings), `Barlow` (body), `Caveat` (handwritten accents),
+  self-hosted from `src/fonts/` — see the privacy note below.
 - Scroll-reveal system: any element with class `r` fades up into view;
   `r-left`/`r-right`/`r-zoom` vary the entrance direction. Timing is
   tuned so the fade always finishes *before* an element is scrolled
@@ -162,5 +163,14 @@ servers are Linux) with output directory `public`.
   styled by a stale stylesheet — which shipped a badge stretched to triple
   height before this was added. Don't go back to fixed asset filenames; the
   `_headers` file caches the hashed ones for a year on the strength of it.
+- **Fonts are self-hosted, deliberately**: they used to come from Google,
+  which meant every visitor's IP address was sent to Google on every page
+  load. `src/fonts/` holds the woff2 files and a generated `fonts.css` of
+  `@font-face` rules, which `build.py` prepends to the stylesheet. Don't
+  reintroduce the Google Fonts `<link>` — the site currently makes no
+  third-party requests at all, which is why it needs no cookie banner.
+  Each face is split by `unicode-range` into latin and latin-ext, so a
+  browser only downloads the subsets a page actually uses (six files, not
+  sixteen).
 - **Reduced motion**: everything animated checks
   `prefers-reduced-motion`. Keep that check on any new animation.

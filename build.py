@@ -44,7 +44,7 @@ from pages import PAGES, SITE_URL  # noqa: E402
 TOKEN_RE = re.compile(r"__[A-Z0-9_:]+__")
 
 
-def hashed_name(path):
+def hashed_name(stem, suffix, data):
     """style.css -> style.<content hash>.css
 
     The HTML is served with max-age=0 but CSS and JS are cached for hours, so
@@ -53,17 +53,26 @@ def hashed_name(path):
     filename whenever the contents change makes that impossible, and lets the
     assets be cached hard (see the _headers file).
     """
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()[:8]
-    return "%s.%s%s" % (path.stem, digest, path.suffix)
+    digest = hashlib.sha256(data).hexdigest()[:8]
+    return "%s.%s%s" % (stem, digest, suffix)
 
 
-CSS_NAME = hashed_name(SRC / "css" / "style.css")
-JS_NAME = hashed_name(SRC / "js" / "main.js")
+# The fonts are self-hosted rather than fetched from Google, so visitors'
+# IP addresses never reach a third party. src/fonts/fonts.css holds the
+# generated @font-face block and rides in the same stylesheet.
+CSS_TEXT = ((SRC / "fonts" / "fonts.css").read_text(encoding="utf-8")
+            + (SRC / "css" / "style.css").read_text(encoding="utf-8"))
+JS_TEXT = (SRC / "js" / "main.js").read_text(encoding="utf-8")
+
+CSS_NAME = hashed_name("style", ".css", CSS_TEXT.encode("utf-8"))
+JS_NAME = hashed_name("main", ".js", JS_TEXT.encode("utf-8"))
 
 HEADERS = """\
 /css/*
   Cache-Control: public, max-age=31536000, immutable
 /js/*
+  Cache-Control: public, max-age=31536000, immutable
+/fonts/*
   Cache-Control: public, max-age=31536000, immutable
 """
 
@@ -229,10 +238,13 @@ def main():
     (PUBLIC / "robots.txt").write_text(build_robots(), encoding="utf-8")
 
     (PUBLIC / "css").mkdir()
-    shutil.copyfile(SRC / "css" / "style.css", PUBLIC / "css" / CSS_NAME)
+    (PUBLIC / "css" / CSS_NAME).write_text(CSS_TEXT, encoding="utf-8")
 
     (PUBLIC / "js").mkdir()
-    shutil.copyfile(SRC / "js" / "main.js", PUBLIC / "js" / JS_NAME)
+    (PUBLIC / "js" / JS_NAME).write_text(JS_TEXT, encoding="utf-8")
+
+    shutil.copytree(SRC / "fonts", PUBLIC / "fonts",
+                    ignore=shutil.ignore_patterns("*.css"))
 
     # hashed names can never go stale, so let them be cached hard
     (PUBLIC / "_headers").write_text(HEADERS, encoding="utf-8")
