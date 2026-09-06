@@ -105,6 +105,8 @@ def build_page(page):
     # only works for inline SVG, not an <img src="...">.
     html = html.replace("__MAP_SVG__", read(IMAGES / "plan.svg").strip())
 
+    check_images(html, "page %r" % (page["slug"] or "/"))
+
     leftover = sorted(set(TOKEN_RE.findall(html)))
     if leftover:
         sys.exit("unreplaced tokens on page %r: %s"
@@ -120,6 +122,21 @@ NOT_FOUND = {
     "description": "That page could not be found. The Corner Café is still at "
                    "stall 6, Par Market, Cornwall.",
 }
+
+
+def check_images(html, where):
+    """Fail the build if a page references an image that isn't in images/.
+
+    A missing image is invisible in the build output and only shows up as a
+    broken picture on the live site, so it's worth catching here.
+    """
+    missing = sorted({
+        ref for ref in re.findall(r'/images/([A-Za-z0-9._-]+)', html)
+        if not (IMAGES / ref).exists()
+    })
+    if missing:
+        sys.exit("%s references images that are not in images/: %s"
+                 % (where, ", ".join(missing)))
 
 
 def build_sitemap():

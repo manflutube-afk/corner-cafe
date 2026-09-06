@@ -30,7 +30,10 @@ body::before{
 }
 h1,h2,h3{font-family:'Anton',Impact,sans-serif;font-weight:400;text-transform:uppercase;line-height:.95;letter-spacing:.01em;margin:0}
 a{color:inherit}
-img{max-width:100%;display:block}
+/* height:auto is load-bearing: images carry width/height attributes (they stop
+   the page jumping about as they load), and without this the attribute height
+   wins over the capped width and the picture comes out stretched. */
+img{max-width:100%;height:auto;display:block}
 .wrap{width:min(1320px,94vw);margin-inline:auto}
 .kicker{font-family:'Caveat',cursive;font-size:26px;color:var(--blue);display:block;margin-bottom:4px;text-transform:none;letter-spacing:0}
 .lede{font-size:19px;color:var(--muted);max-width:58ch}
