@@ -518,7 +518,18 @@ footer a[href^="http"]:hover::after,footer a[href^="tel"]:hover::after{right:0}
 }
 @media(min-width:761px){.reviews-dots{display:none}}
 
+/* the official FSA badge is its own finished graphic — no photo frame or tilt,
+   which would undercut it. Capped and centred so it sits well in the column
+   on desktop and doesn't blow up to full width on a phone. */
+.hygiene-badge{margin:0}
+.hygiene-badge img{width:100%;max-width:420px;height:auto;margin-inline:auto}
+
 .btn.tripadvisor-btn{margin-top:36px;display:inline-flex;align-items:center;gap:12px;background:#00AF87;border-color:#00AF87;color:#fff}
+/* inline-flex won't centre with margin auto alone, so switch to flex and let
+   the button shrink to its content */
+@media(max-width:760px){
+  .btn.tripadvisor-btn{display:flex;width:fit-content;margin-inline:auto}
+}
 .btn.tripadvisor-btn:hover,.btn.tripadvisor-btn:focus-visible{background:#00c89a;border-color:#00c89a;color:#fff}
 .ta-mark{width:24px;height:24px;flex:none;display:inline-flex}
 .ta-mark svg{width:100%;height:100%}
